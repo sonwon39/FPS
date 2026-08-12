@@ -1,0 +1,44 @@
+# ===== Unreal Engine 재생성 가능 폴더 (커밋 금지) =====
+Binaries/
+Build/
+DerivedDataCache/
+Intermediate/
+Saved/
+Packaged/
+Plugins/
+
+# ===== IDE / 툴체인 =====
+.vs/
+.idea/
+*.sln
+*.suo
+*.sdf
+*.opensdf
+*.VC.db
+*.VC.opendb
+*.pdb
+.vscode/
+    
+# ===== OS =====
+.DS_Store
+Thumbs.db
+ehthumbs.db
+
+# ===== 프로젝트 설계 문서 — 레포에는 올리지 않고 로컬 전용으로 유지 =====
+Docs/
+
+.claude/
+Config/
+Content/
+Documents/
+Transcript/
+Tools/
+Patches/
+
+CLAUDE.md
+FPS.code-workspace
+.mcp.json
+RegenProjectFiles.bat
+push.bat
+package.bat
+.ignore
