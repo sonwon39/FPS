@@ -1,27 +1,28 @@
+// FPPMelee 테스트용
+
 #pragma once
 
 #include "CoreMinimal.h"
-#include "AlsCharacter.h"
-#include "FpsCharacter.generated.h"
+#include "GameFramework/Character.h"
+#include "TestCharacter.generated.h"
 
 class USkeletalMeshComponent;
-class UCameraComponent;
 class USpringArmComponent;
-
+class UCameraComponent;
 class UInputMappingContext;
 class UInputAction;
+class UAnimMontage;
 
 class AFpsWeapon;
-
 struct FInputActionValue;
 
 UCLASS()
-class FPS_API AFpsCharacter : public AAlsCharacter
+class FPS_API ATestCharacter : public ACharacter
 {
 	GENERATED_BODY()
 
 public:
-	AFpsCharacter();	
+	ATestCharacter();	
 
 public:
 	virtual void BeginPlay() override;
@@ -33,47 +34,42 @@ protected:
 public:
 	// ── Components ───────────────────────────────────────────────────────
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "FPSCharacter|Components")
-	TObjectPtr<USkeletalMeshComponent> FPBodyMesh = nullptr;
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "FPSCharacter|Components")
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Character|Components")
 	TObjectPtr<USpringArmComponent> SpringArm = nullptr;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "FPSCharacter|Components")
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Character|Components")
 	TObjectPtr<UCameraComponent> Camera = nullptr;
 
 public:
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "FPSCharacter|Weapon")
-	TSubclassOf<AFpsWeapon> ViperWeaponClass; 
-
-	AFpsWeapon* ViperWeapon = nullptr;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Character|Weapon")
+	TObjectPtr<AFpsWeapon> CurrentWeapon = nullptr;
 
 public:
 	// ── Input ───────────────────────────────────────────────────────
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "FPSCharacter|Input")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "TestCharacter|Input")
 	TObjectPtr<UInputMappingContext> InputMapping = nullptr;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "FPSCharacter|Input")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "TestCharacter|Input")
 	TObjectPtr<UInputAction> MoveAction = nullptr;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "FPSCharacter|Input")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "TestCharacter|Input")
 	TObjectPtr<UInputAction> LookAction = nullptr;
-	
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "FPSCharacter|Input")
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "TestCharacter|Input")
 	TObjectPtr<UInputAction> SprintAction = nullptr;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "FPSCharacter|Input")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "TestCharacter|Input")
 	TObjectPtr<UInputAction> AimAction = nullptr;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "FPSCharacter|Input")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "TestCharacter|Input")
 	TObjectPtr<UInputAction> JumpAction = nullptr;
 	
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "FPSCharacter|Input")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "TestCharacter|Input")
 	TObjectPtr<UInputAction> SwitchViewAction = nullptr;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "FPSCharacter|Input")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "TestCharacter|Input")
 	TObjectPtr<UInputAction> AttackAction = nullptr;
 
 protected:
@@ -94,9 +90,16 @@ protected:
 
 	void OnAttack(const FInputActionValue& Value);
 
+protected:
+	// ── Anim Montage ───────────────────────────────────────────────────────
+
+	UPROPERTY(EditAnywhere)
+	TObjectPtr<UAnimMontage> AttackMontage;
+
 public:
 
 	void SetAiming(const bool bNewAiming);
+	void SetSprinting(const bool bNewSprinting);
 
 protected:
 
@@ -114,11 +117,8 @@ protected:
 protected:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TestCharacter|Movement")
-	float FpsCrouchMoveSpeed = 250.f;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TestCharacter|Movement")
-	float FpsWalkSpeed = 400.f;
+	float WalkSpeed = 400.f;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TestCharacter|Movement")
-	float FpsRunSpeed = 800.f;
+	float SprintSpeed = 800.f;
 };

@@ -49,5 +49,8 @@ public class FPS : ModuleRules
 				"OnlineSubsystemUtils"
 			}
 		);
+		PublicIncludePaths.AddRange(new string[] {
+			"FPS"
+		});
 	}
 }
