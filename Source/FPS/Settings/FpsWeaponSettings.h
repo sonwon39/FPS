@@ -6,6 +6,7 @@
 #include "Engine/DataAsset.h"
 #include "FpsWeaponSettings.generated.h"
 
+class UAnimSequence;
 /**
  * 
  */
@@ -18,4 +19,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stats", Meta=(ClampMin=1))
 	int32 MagazineSize = 30;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stats", Meta=(ClampMin=1))
+	float AimingDuration = 0.25f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stats", Meta=(ClampMin=1))
+	UAnimSequence* IdleAnimSequence = nullptr;
 };

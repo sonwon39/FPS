@@ -25,9 +25,9 @@ public:
 	ATestCharacter();	
 
 public:
-	virtual void BeginPlay() override;
-	virtual void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
-	virtual void PossessedBy(AController* NewController) override;
+	void BeginPlay() override;
+	void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
+	void PossessedBy(AController* NewController) override;
 
 protected:
 

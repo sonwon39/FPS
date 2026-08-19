@@ -26,7 +26,7 @@ public class FPS : ModuleRules
 				"HTTP",
 				"Json",
 				"JsonUtilities",
-
+				"UMG",
 				// Drone combat prototype: AAIController / bot logic lives in Drone/.
 				"AIModule",
 

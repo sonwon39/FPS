@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "AlsCharacter.h"
+#include "FpsCharacterInterface.h"
 #include "FpsCharacter.generated.h"
 
 class USkeletalMeshComponent;
@@ -16,7 +17,7 @@ class AFpsWeapon;
 struct FInputActionValue;
 
 UCLASS()
-class FPS_API AFpsCharacter : public AAlsCharacter
+class FPS_API AFpsCharacter : public AAlsCharacter, public IFpsCharacterInterface
 {
 	GENERATED_BODY()
 
@@ -24,11 +25,17 @@ public:
 	AFpsCharacter();	
 
 public:
-	virtual void BeginPlay() override;
-	virtual void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
-	virtual void PossessedBy(AController* NewController) override;
+	void BeginPlay() override;
+	void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
+	void PossessedBy(AController* NewController) override;
+	void Tick(float DeltaSeconds) override;
 
-protected:
+public:
+	// ── IFpsCharacterInterface ───────────────────────────────────────────────────────
+
+	USkeletalMeshComponent* GetPlayerMesh_Implementation() override;
+	AFpsWeapon* GetWeapon_Implementation() override;
+	FTransform GetAimPoint_Implementation() override;
 
 public:
 	// ── Components ───────────────────────────────────────────────────────
@@ -45,9 +52,16 @@ public:
 public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "FPSCharacter|Weapon")
-	TSubclassOf<AFpsWeapon> ViperWeaponClass; 
+	TArray<TSubclassOf<AFpsWeapon>> WeaponClassList;
 
-	AFpsWeapon* ViperWeapon = nullptr;
+	FActorSpawnParameters WeaponSpawnParams;
+	int32 WeaponIndex = 0;
+	int32 WeaponCount = 0;
+
+private:
+
+	UPROPERTY(VisibleAnywhere)
+	TObjectPtr<AFpsWeapon> CurrentWeapon = nullptr;
 
 public:
 	// ── Input ───────────────────────────────────────────────────────
@@ -76,6 +90,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "FPSCharacter|Input")
 	TObjectPtr<UInputAction> AttackAction = nullptr;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "FPSCharacter|Input")
+	TObjectPtr<UInputAction> SwitchWeaponAction = nullptr;
+
 protected:
 	// ── 입력 콜백함수 ───────────────────────────────────────────────────────
 	void OnMove(const FInputActionValue& Value);
@@ -85,7 +102,6 @@ protected:
 	void OnSprintStop(const FInputActionValue& Value);
 
 	void OnAimStart(const FInputActionValue& Value);
-	void OnAimStop(const FInputActionValue& Value);
 
 	void OnJumpStart(const FInputActionValue& Value);
 	void OnJumpStop(const FInputActionValue& Value);
@@ -93,14 +109,16 @@ protected:
 	void OnSwitchViewMode(const FInputActionValue& Value);
 
 	void OnAttack(const FInputActionValue& Value);
+	void OnSwitchWeapon(const FInputActionValue& Value);
 
 public:
 
 	void SetAiming(const bool bNewAiming);
+	bool GetAiming() const {return bAiming;}
 
 protected:
 
-	// ── 애님 그래프 + 멀티용 상태 전환  ───────────────────────────────────────────────────────
+	// ── 애님 그래프 + 멀티용 상태 전환  ─────────────────────────────────────────────
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "TestCharacter|State")
 	bool bAiming = false;
@@ -112,6 +130,7 @@ protected:
 	bool bFpsMode = false;
 
 protected:
+	// ── Movement  ────────────────────────────────────────────────────────────────
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TestCharacter|Movement")
 	float FpsCrouchMoveSpeed = 250.f;
@@ -121,4 +140,26 @@ protected:
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TestCharacter|Movement")
 	float FpsRunSpeed = 800.f;
+
+protected:
+	// ── View  ─────────────────────────────────────────────────────────────────
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TestCharacter|View")
+	float DefaultFov = 90.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TestCharacter|View")
+	float AimFov = 70.f;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "TestCharacter|View")
+	float CurrentFov = 90.f;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "TestCharacter|Ads")
+	float AdsAlpha = 0.f;
+
+	float FovDuration = 1.f;
+	float TargetFov = 90.f;
+
+protected:
+	bool bTickAiming = false;
+	void TickAiming(float DeltaTime);
 };

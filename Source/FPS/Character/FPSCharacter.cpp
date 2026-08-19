@@ -29,13 +29,13 @@ AFpsCharacter::AFpsCharacter()
 	PrimaryActorTick.bCanEverTick = true;
 
 	USkeletalMeshComponent* body = GetMesh();
+	body->SetVisibility(false);
 
     FPBodyMesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("FPBodyMesh"));
 	FPBodyMesh->SetupAttachment(GetCapsuleComponent());
 	FPBodyMesh->SetRelativeLocation(FVector(0.0f, 0.0f, -92.0f));
 	FPBodyMesh->SetRelativeRotation(FRotator(0.0f, -90.0f, 0.0f));
 	FPBodyMesh->SetOnlyOwnerSee(true);
-	FPBodyMesh->SetVisibility(false);
 
 	SpringArm = CreateDefaultSubobject<USpringArmComponent>(TEXT("SpringArm"));
 	SpringArm->TargetArmLength  = 600.f;
@@ -44,8 +44,11 @@ AFpsCharacter::AFpsCharacter()
 	//SpringArm->SetUsingAbsoluteRotation(true);
 
 	Camera = CreateDefaultSubobject<UCameraComponent>(TEXT("Camera"));
-	Camera->SetupAttachment(SpringArm);
-	//Camera->SetUsingAbsoluteRotation(true);
+	Camera->SetupAttachment(FPBodyMesh, FName(TEXT("FPCamera")));
+	Camera->bUsePawnControlRotation = true;
+	Camera->SetUsingAbsoluteRotation(true);
+
+	bFpsMode = true;
 
 	if (UCharacterMovementComponent* move = GetCharacterMovement())
 	{
@@ -81,8 +84,8 @@ void AFpsCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCompon
 
 	if (AimAction)
 	{
-		eic->BindAction(AimAction, ETriggerEvent::Triggered, this, &AFpsCharacter::OnAimStart);
-		eic->BindAction(AimAction, ETriggerEvent::Completed, this, &AFpsCharacter::OnAimStop);
+		eic->BindAction(AimAction, ETriggerEvent::Started, this, &AFpsCharacter::OnAimStart);
+		//eic->BindAction(AimAction, ETriggerEvent::Completed, this, &AFpsCharacter::OnAimStop);
 	}
 
 	if (JumpAction)
@@ -99,6 +102,11 @@ void AFpsCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCompon
 	if (AttackAction)
 	{
 		eic->BindAction(AttackAction, ETriggerEvent::Started, this, &AFpsCharacter::OnAttack);
+	}
+
+	if (SwitchWeaponAction)
+	{
+		eic->BindAction(SwitchWeaponAction, ETriggerEvent::Started, this, &AFpsCharacter::OnSwitchWeapon);
 	}
 }
 
@@ -125,21 +133,50 @@ void AFpsCharacter::BeginPlay()
 {
 	Super::BeginPlay();
 
-	FActorSpawnParameters params;
-	params.Owner = this;
-	params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+	WeaponSpawnParams.Owner = this;
+	WeaponSpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 
 	FPBodyMesh->HideBoneByName(FName(TEXT("head")), EPhysBodyOp::PBO_None);
 
-	if(ViperWeaponClass)
+	WeaponCount = WeaponClassList.Num();
+	if(!WeaponClassList.IsEmpty())
 	{
-		ViperWeapon = GetWorld()->SpawnActor<AFpsWeapon>(ViperWeaponClass, params);
-		ViperWeapon->AttachToComponent(FPBodyMesh, 
+		CurrentWeapon = GetWorld()->SpawnActor<AFpsWeapon>(WeaponClassList[WeaponIndex], WeaponSpawnParams);
+		CurrentWeapon->AttachToComponent(FPBodyMesh, 
 			FAttachmentTransformRules::SnapToTargetNotIncludingScale, FName(TEXT("VB ik_hand_gun_pivot")));
 	}
 
 	SetViewMode(AlsViewModeTags::FirstPerson);
 	SetDesiredRotationMode(AlsRotationModeTags::VelocityDirection);
+}
+
+void AFpsCharacter::Tick(float DeltaSeconds)
+{
+	Super::Tick(DeltaSeconds);
+
+	if(bTickAiming)
+	{
+		TickAiming(DeltaSeconds);
+	}
+}
+
+USkeletalMeshComponent* AFpsCharacter::GetPlayerMesh_Implementation()
+{
+	return FPBodyMesh;
+}
+
+AFpsWeapon* AFpsCharacter::GetWeapon_Implementation()
+{
+	return CurrentWeapon;
+}
+
+FTransform AFpsCharacter::GetAimPoint_Implementation()
+{
+	if(CurrentWeapon)
+	{
+		return CurrentWeapon->GetAimPoint();
+	}
+	return FTransform::Identity;
 }
 
 void AFpsCharacter::OnMove(const FInputActionValue& Value)
@@ -172,12 +209,20 @@ void AFpsCharacter::OnSprintStop(const FInputActionValue& Value)
 
 void AFpsCharacter::OnAimStart(const FInputActionValue& Value)
 {
-	SetAiming(true);
-}
+	bTickAiming = true;
+	SetAiming(!GetAiming());
 
-void AFpsCharacter::OnAimStop(const FInputActionValue& Value)
-{
-	SetAiming(false);
+	FovDuration = CurrentWeapon->GetAimingDuration();
+
+	if(bAiming)
+	{
+		TargetFov = AimFov;
+	}
+	else
+	{
+		FovDuration *= -1.f;
+		TargetFov = DefaultFov;
+	}
 }
 
 void AFpsCharacter::OnJumpStart(const FInputActionValue& Value)
@@ -224,10 +269,64 @@ void AFpsCharacter::OnSwitchViewMode(const FInputActionValue& Value)
 
 void AFpsCharacter::OnAttack(const FInputActionValue& Value)
 {
+	if(GetLocomotionAction().IsValid())
+		return;
 
+	FHitResult Result;
+	FVector Start = Camera->GetComponentLocation();
+	FVector Dir = GetControlRotation().Vector();
+	FVector End = Start + 100000.f * Dir;
+	
+	FCollisionQueryParams params;
+	params.AddIgnoredActor(this);
+	params.AddIgnoredActor(CurrentWeapon);
+	
+	GetWorld()->LineTraceSingleByChannel(Result, Start, End
+	    ,ECollisionChannel::ECC_GameTraceChannel1, params);
+
+	if(Result.bBlockingHit && Result.GetActor())
+	{
+		UE_LOG(LogTemp, Log, TEXT("Hit ! : %s"), *(Result.GetActor()->GetName()));
+		DrawDebugLine(GetWorld(), Start, Result.ImpactPoint, FColor::Red, false, 3.f);
+	}
+}
+
+void AFpsCharacter::OnSwitchWeapon(const FInputActionValue& Value)
+{
+	if(WeaponCount == 0)
+		return;
+
+	const float axis = Value.Get<float>();
+	int32 del = 1;
+	if(axis < 0.f)
+	{
+		del = -1;
+	}
+	int32 NewIndex = FMath::Clamp(WeaponIndex + del, 0, WeaponCount -1);
+	if(NewIndex != WeaponIndex)
+	{
+		WeaponIndex = NewIndex;
+		CurrentWeapon->Destroy();
+		CurrentWeapon = GetWorld()->SpawnActor<AFpsWeapon>(WeaponClassList[NewIndex], WeaponSpawnParams);
+		CurrentWeapon->AttachToComponent(FPBodyMesh, 
+			FAttachmentTransformRules::SnapToTargetNotIncludingScale, FName(TEXT("VB ik_hand_gun_pivot")));
+	}
 }
 
 void AFpsCharacter::SetAiming(const bool bNewAiming)
 {
 	bAiming = bNewAiming;
+}
+
+void AFpsCharacter::TickAiming(float DeltaTime)
+{
+	if(CurrentFov == TargetFov)
+	{
+		bTickAiming = false;
+		return;
+	}
+
+	AdsAlpha = FMath::Clamp(AdsAlpha + DeltaTime / FovDuration, 0.f, 1.f);
+	CurrentFov = FMath::Lerp(DefaultFov, AimFov, AdsAlpha);
+	Camera->SetFieldOfView(CurrentFov);
 }
