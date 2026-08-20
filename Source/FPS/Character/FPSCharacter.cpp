@@ -23,6 +23,7 @@
 #include "Utility/AlsConstants.h"          // Transition 슬롯 이름 (ADS 견착 몽타주)
 
 #include "Weapon/FpsWeapon.h"
+#include "Animation/AnimMontage.h"
 
 AFpsCharacter::AFpsCharacter()
 {
@@ -30,24 +31,25 @@ AFpsCharacter::AFpsCharacter()
 
 	USkeletalMeshComponent* body = GetMesh();
 	body->SetVisibility(false);
+	body->SetCastHiddenShadow(true);  
 
     FPBodyMesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("FPBodyMesh"));
 	FPBodyMesh->SetupAttachment(GetCapsuleComponent());
 	FPBodyMesh->SetRelativeLocation(FVector(0.0f, 0.0f, -92.0f));
 	FPBodyMesh->SetRelativeRotation(FRotator(0.0f, -90.0f, 0.0f));
 	FPBodyMesh->SetOnlyOwnerSee(true);
+	FPBodyMesh->SetCastShadow(false); 
 
 	SpringArm = CreateDefaultSubobject<USpringArmComponent>(TEXT("SpringArm"));
-	SpringArm->TargetArmLength  = 600.f;
-	SpringArm->SetupAttachment(body, FName(TEXT("head")));
+	SpringArm->TargetArmLength  = 350.f;
 	SpringArm->bUsePawnControlRotation = true;
-	//SpringArm->SetUsingAbsoluteRotation(true);
+	SpringArm->SetupAttachment(body, FName(TEXT("head")));
+	SpringArm->SetRelativeLocation(FVector(25.0f, 0.0f, 25.0f));
 
 	Camera = CreateDefaultSubobject<UCameraComponent>(TEXT("Camera"));
 	Camera->SetupAttachment(FPBodyMesh, FName(TEXT("FPCamera")));
-	Camera->bUsePawnControlRotation = true;
 	Camera->SetUsingAbsoluteRotation(true);
-
+	Camera->bUsePawnControlRotation = true;
 	bFpsMode = true;
 
 	if (UCharacterMovementComponent* move = GetCharacterMovement())
@@ -110,11 +112,11 @@ void AFpsCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCompon
 	}
 }
 
-void AFpsCharacter::PossessedBy(AController* NewController)
+void AFpsCharacter::PawnClientRestart()
 {
-	Super::PossessedBy(NewController);
+	Super::PawnClientRestart();
 
-	APlayerController* pc = Cast<APlayerController>(NewController);
+	APlayerController* pc = Cast<APlayerController>(GetController());
 	if(pc == nullptr) return;
 
 	ULocalPlayer* lp = pc->GetLocalPlayer();
@@ -136,7 +138,11 @@ void AFpsCharacter::BeginPlay()
 	WeaponSpawnParams.Owner = this;
 	WeaponSpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 
-	FPBodyMesh->HideBoneByName(FName(TEXT("head")), EPhysBodyOp::PBO_None);
+	//FPBodyMesh->HideBoneByName(FName(TEXT("head")), EPhysBodyOp::PBO_None);
+	FPAnimInstance = FPBodyMesh->GetAnimInstance();   
+
+    DrawMontageEnded.BindUObject(this, &AFpsCharacter::OnDrawMontageEnded);
+    MantleMontageEnded.BindUObject(this, &AFpsCharacter::OnMantleMontageEnded);
 
 	WeaponCount = WeaponClassList.Num();
 	if(!WeaponClassList.IsEmpty())
@@ -144,6 +150,10 @@ void AFpsCharacter::BeginPlay()
 		CurrentWeapon = GetWorld()->SpawnActor<AFpsWeapon>(WeaponClassList[WeaponIndex], WeaponSpawnParams);
 		CurrentWeapon->AttachToComponent(FPBodyMesh, 
 			FAttachmentTransformRules::SnapToTargetNotIncludingScale, FName(TEXT("VB ik_hand_gun_pivot")));
+
+		UAnimMontage* DrawMontage = CurrentWeapon->GetDrawAnimMontage();
+		
+		if(PlayFPMontage(DrawMontage, DrawMontageEnded) > 0.f) SetDrawing(true);
 	}
 
 	SetViewMode(AlsViewModeTags::FirstPerson);
@@ -157,6 +167,24 @@ void AFpsCharacter::Tick(float DeltaSeconds)
 	if(bTickAiming)
 	{
 		TickAiming(DeltaSeconds);
+	}
+
+	if(bTickMantleCamera)
+	{
+		TickMantleCamera(DeltaSeconds);
+	}
+}
+
+void AFpsCharacter::CalcCamera(float DeltaTime, FMinimalViewInfo& OutResult)
+{
+	Super::CalcCamera(DeltaTime, OutResult);   // OutResult = FPCamera 소켓 추종값
+
+	// 만틀 동안 머리(소켓) 추종을 캡슐 추종으로 대체 — 오르는 궤적은 캡슐이 이미 갖고 있다
+	if(bFpsMode && MantleCameraAlpha > 0.f)
+	{
+		const FVector capsuleAnchor = GetCapsuleComponent()->GetComponentTransform().TransformPosition(MantleCameraOffset);
+		OutResult.Location = FMath::Lerp(OutResult.Location, capsuleAnchor,
+			MantleCameraAlpha * MantleCameraMaxAlpha);
 	}
 }
 
@@ -269,7 +297,7 @@ void AFpsCharacter::OnSwitchViewMode(const FInputActionValue& Value)
 
 void AFpsCharacter::OnAttack(const FInputActionValue& Value)
 {
-	if(GetLocomotionAction().IsValid())
+	if(GetLocomotionAction().IsValid() || bIsDrawing)
 		return;
 
 	FHitResult Result;
@@ -310,12 +338,20 @@ void AFpsCharacter::OnSwitchWeapon(const FInputActionValue& Value)
 		CurrentWeapon = GetWorld()->SpawnActor<AFpsWeapon>(WeaponClassList[NewIndex], WeaponSpawnParams);
 		CurrentWeapon->AttachToComponent(FPBodyMesh, 
 			FAttachmentTransformRules::SnapToTargetNotIncludingScale, FName(TEXT("VB ik_hand_gun_pivot")));
+		
+		UAnimMontage* DrawMontage = CurrentWeapon->GetDrawAnimMontage();
+		if(PlayFPMontage(DrawMontage, DrawMontageEnded) > 0.f)	SetDrawing(true);
 	}
 }
 
 void AFpsCharacter::SetAiming(const bool bNewAiming)
 {
 	bAiming = bNewAiming;
+}
+
+void AFpsCharacter::SetDrawing(const bool bNewDrawing)
+{
+	bIsDrawing = bNewDrawing;
 }
 
 void AFpsCharacter::TickAiming(float DeltaTime)
@@ -329,4 +365,64 @@ void AFpsCharacter::TickAiming(float DeltaTime)
 	AdsAlpha = FMath::Clamp(AdsAlpha + DeltaTime / FovDuration, 0.f, 1.f);
 	CurrentFov = FMath::Lerp(DefaultFov, AimFov, AdsAlpha);
 	Camera->SetFieldOfView(CurrentFov);
+}
+
+void AFpsCharacter::TickMantleCamera(float DeltaTime)
+{
+	if(MantleCameraAlpha == MantleCameraTargetAlpha)
+	{
+		bTickMantleCamera = false;
+		return;
+	}
+	MantleCameraAlpha = FMath::FInterpConstantTo(MantleCameraAlpha, MantleCameraTargetAlpha, DeltaTime, MantleCameraBlendSpeed);
+}
+
+void AFpsCharacter::OnMantlingStarted_Implementation(const FAlsMantlingParameters& Parameters)
+{  
+    Super::OnMantlingStarted_Implementation(Parameters);
+ 	UAlsMantlingSettings* MantlingSettings = SelectMantlingSettings(Parameters.MantlingType);
+    UAnimMontage* MantlingMontage = MantlingSettings ? MantlingSettings->Montage : nullptr;
+	
+	if(MantlingMontage)
+	{
+		const float StartTime = CalculateMantlingStartTime(MantlingSettings, Parameters.MantlingHeight);
+
+		if(PlayFPMontage(MantlingMontage, MantleMontageEnded) > 0.f)
+			FPAnimInstance->Montage_SetPosition(MantlingMontage, StartTime);
+	}
+
+	// 현재 카메라의 캡슐-로컬 오프셋을 저장
+	MantleCameraOffset = GetCapsuleComponent()->GetComponentTransform().InverseTransformPosition(Camera->GetComponentLocation());
+	MantleCameraTargetAlpha = 1.f;
+	bTickMantleCamera = true;
+}
+
+void AFpsCharacter::OnMantlingEnded_Implementation()
+{
+    Super::OnMantlingEnded_Implementation();
+
+	// 카메라 위치 소켓 위치로 복구
+	MantleCameraTargetAlpha = 0.f;
+	bTickMantleCamera = true;
+}
+
+void AFpsCharacter::OnDrawMontageEnded(UAnimMontage* Montage, bool bInterrupted)
+{
+	SetDrawing(false);
+}
+
+void AFpsCharacter::OnMantleMontageEnded(UAnimMontage* Montage, bool bInterrupted)
+{
+
+}
+
+float AFpsCharacter::PlayFPMontage(UAnimMontage* Montage, FOnMontageEnded MontageEnded)
+{	
+	if (FPAnimInstance == nullptr || Montage == nullptr) return 0.f;
+	const float len = FPAnimInstance->Montage_Play(Montage);	
+	if(MontageEnded.IsBound() && len > 0.f)
+	{
+		FPAnimInstance->Montage_SetEndDelegate(MontageEnded, Montage); 
+	}	
+	return len;
 }

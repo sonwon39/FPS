@@ -1,6 +1,7 @@
 #include "FpsWeapon.h"
 #include "Settings/FpsWeaponSettings.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Animation/AnimMontage.h"
 
 AFpsWeapon::AFpsWeapon()
 {
@@ -33,4 +34,18 @@ float AFpsWeapon::GetAimingDuration()
 		return 0.25f;
 	}
 	return WeaponSettings->AimingDuration;
+}
+
+UAnimMontage* AFpsWeapon::GetDrawAnimMontage()
+{
+	if(WeaponSettings)
+	{
+		return WeaponSettings->DrawMontage;
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("WeaponSettings is nullptr"));
+		return nullptr;
+
+	}
 }

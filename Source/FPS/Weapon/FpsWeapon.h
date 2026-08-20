@@ -29,6 +29,8 @@ public:
 
 	float GetAimingDuration();
 
+	UAnimMontage* GetDrawAnimMontage();
+
 protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Weapon")
 	TObjectPtr<USkeletalMeshComponent> WeaponMesh = nullptr;

@@ -12,6 +12,8 @@ class USpringArmComponent;
 class UInputMappingContext;
 class UInputAction;
 
+class UAnimInstance;
+
 class AFpsWeapon;
 
 struct FInputActionValue;
@@ -27,8 +29,9 @@ public:
 public:
 	void BeginPlay() override;
 	void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
-	void PossessedBy(AController* NewController) override;
+	void PawnClientRestart() override;
 	void Tick(float DeltaSeconds) override;
+	void CalcCamera(float DeltaTime, FMinimalViewInfo& OutResult) override;
 
 public:
 	// ── IFpsCharacterInterface ───────────────────────────────────────────────────────
@@ -114,6 +117,7 @@ protected:
 public:
 
 	void SetAiming(const bool bNewAiming);
+	void SetDrawing(const bool bNewDrawing);
 	bool GetAiming() const {return bAiming;}
 
 protected:
@@ -128,6 +132,9 @@ protected:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "TestCharacter|State")
 	bool bFpsMode = false;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "TestCharacter|State")
+	bool bIsDrawing = false;
 
 protected:
 	// ── Movement  ────────────────────────────────────────────────────────────────
@@ -162,4 +169,38 @@ protected:
 protected:
 	bool bTickAiming = false;
 	void TickAiming(float DeltaTime);
+
+protected:
+	// ── Mantle Camera ──────────────────────────
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TestCharacter|MantleCamera", Meta = (ClampMin = 0.01))
+	float MantleCameraBlendSpeed = 7.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TestCharacter|MantleCamera", Meta = (ClampMin = 0, ClampMax = 1))
+	float MantleCameraMaxAlpha = 1.f;
+
+	float MantleCameraAlpha = 0.f;
+	float MantleCameraTargetAlpha = 0.f;
+	FVector MantleCameraOffset = FVector::ZeroVector;
+
+	bool bTickMantleCamera = false;
+	void TickMantleCamera(float DeltaTime);
+
+protected:
+	// ── Montage  ─────────────────────────────────────────────────────────────────
+
+	float PlayFPMontage(UAnimMontage* Montage, FOnMontageEnded MontageEnded = FOnMontageEnded());
+	void OnMantlingStarted_Implementation(const FAlsMantlingParameters& Parameters) override;
+	void OnMantlingEnded_Implementation() override;
+
+	void OnDrawMontageEnded(UAnimMontage* Montage, bool bInterrupted);
+	void OnMantleMontageEnded(UAnimMontage* Montage, bool bInterrupted);
+
+protected:
+    FOnMontageEnded DrawMontageEnded;
+    FOnMontageEnded MantleMontageEnded;
+
+protected:
+	UPROPERTY()
+	TObjectPtr<UAnimInstance> FPAnimInstance = nullptr;   
 };

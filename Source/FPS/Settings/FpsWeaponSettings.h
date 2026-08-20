@@ -7,9 +7,8 @@
 #include "FpsWeaponSettings.generated.h"
 
 class UAnimSequence;
-/**
- * 
- */
+class UAnimMontage;
+
 UCLASS()
 class FPS_API UFpsWeaponSettings : public UPrimaryDataAsset
 {
@@ -19,9 +18,12 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stats", Meta=(ClampMin=1))
 	int32 MagazineSize = 30;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stats", Meta=(ClampMin=1))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stats")
 	float AimingDuration = 0.25f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stats", Meta=(ClampMin=1))
-	UAnimSequence* IdleAnimSequence = nullptr;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stats")
+	TObjectPtr<UAnimSequence> IdleAnimSequence = nullptr;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stats")
+	TObjectPtr<UAnimMontage> DrawMontage = nullptr;
 };
