@@ -5,7 +5,6 @@ DerivedDataCache/
 Intermediate/
 Saved/
 Packaged/
-Plugins/
 
 # ===== IDE / 툴체인 =====
 .vs/
@@ -28,7 +27,7 @@ ehthumbs.db
 Docs/
 
 .claude/
-Content/
+/Content/
 Documents/
 Transcript/
 Tools/

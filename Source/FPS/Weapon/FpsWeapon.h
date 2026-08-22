@@ -31,6 +31,14 @@ public:
 
 	UAnimMontage* GetDrawAnimMontage();
 
+
+public:
+	UFUNCTION(BlueprintNativeEvent)
+	void SetOnlyOwnerSee(bool bNewOnlyOwnerSee);
+
+	UFUNCTION(BlueprintNativeEvent)
+	void SetVisibility(bool bNewVisibility);
+
 protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Weapon")
 	TObjectPtr<USkeletalMeshComponent> WeaponMesh = nullptr;

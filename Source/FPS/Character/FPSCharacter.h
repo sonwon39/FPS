@@ -53,6 +53,7 @@ public:
 	TObjectPtr<UCameraComponent> Camera = nullptr;
 
 public:
+	// ── Weapon ───────────────────────────────────────────────────────
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "FPSCharacter|Weapon")
 	TArray<TSubclassOf<AFpsWeapon>> WeaponClassList;
@@ -61,11 +62,16 @@ public:
 	int32 WeaponIndex = 0;
 	int32 WeaponCount = 0;
 
+	void SpawnWeapon();
+
 private:
 
 	UPROPERTY(VisibleAnywhere)
-	TObjectPtr<AFpsWeapon> CurrentWeapon = nullptr;
+	TObjectPtr<AFpsWeapon> FPWeapon = nullptr;
 
+	UPROPERTY(VisibleAnywhere)
+	TObjectPtr<AFpsWeapon> TPWeapon = nullptr;
+	
 public:
 	// ── Input ───────────────────────────────────────────────────────
 
@@ -118,7 +124,9 @@ public:
 
 	void SetAiming(const bool bNewAiming);
 	void SetDrawing(const bool bNewDrawing);
+	void SetJumping(const bool bNewJumping);
 	bool GetAiming() const {return bAiming;}
+	bool GetDrawing() const {return bDrawing;}
 
 protected:
 
@@ -134,7 +142,10 @@ protected:
 	bool bFpsMode = false;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "TestCharacter|State")
-	bool bIsDrawing = false;
+	bool bDrawing = false;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "TestCharacter|State")
+	bool bJumping = false;
 
 protected:
 	// ── Movement  ────────────────────────────────────────────────────────────────

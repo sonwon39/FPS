@@ -49,3 +49,19 @@ UAnimMontage* AFpsWeapon::GetDrawAnimMontage()
 
 	}
 }
+
+void AFpsWeapon::SetOnlyOwnerSee_Implementation(bool bNewOnlyOwnerSee)
+{
+	if(WeaponMesh)
+	{
+		WeaponMesh->SetOnlyOwnerSee(bNewOnlyOwnerSee);
+	}
+}
+
+void AFpsWeapon::SetVisibility_Implementation(bool bNewVisibility)
+{
+	if(WeaponMesh)
+	{
+		WeaponMesh->SetVisibility(bNewVisibility);
+	}
+}
